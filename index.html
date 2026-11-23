@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EliteExpressCargo – Suivi de colis Chine → Afrique</title>
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--tx:#1b1d22;--mut:#6b707c;--ac:#0b7a5a;--ac2:#e8f4ef;--bd:#e3e0d8;--warn:#c2710c;--on:#fff}
+@media (prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#14161a;--card:#1d2026;--tx:#eceef2;--mut:#9aa0ac;--ac:#3fcf9f;--ac2:#17302a;--bd:#2c3038;--warn:#f0a548;--on:#06231a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:640px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.6rem;margin:0 0 4px}
+h2{font-size:1.05rem;margin:0 0 10px}
+.sub{color:var(--mut);margin:0 0 18px}
+.search{display:flex;gap:8px}
+input,select{width:100%;min-width:0;padding:12px 14px;border:1px solid var(--bd);border-radius:12px;background:var(--card);color:var(--tx);font-size:1rem}
+button{padding:12px 18px;border:0;border-radius:12px;background:var(--ac);color:var(--on);font-weight:600;font-size:1rem;cursor:pointer}
+button.alt{background:var(--card);color:var(--tx);border:1px solid var(--bd)}
+#out{margin-top:16px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px;margin-bottom:14px}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.badge{padding:4px 10px;border-radius:999px;background:var(--ac2);color:var(--ac);font-weight:600;font-size:.8rem;text-align:right}
+.badge.w{color:var(--warn)}
+.num{font-weight:700;font-size:1.1rem}
+.mut{color:var(--mut);font-size:.9rem}
+.route{display:flex;justify-content:space-between;margin-top:6px;font-weight:600}
+svg{width:100%;height:auto;display:block}
+.bar{height:8px;background:var(--bd);border-radius:6px;overflow:hidden;margin:10px 0 4px}
+.bar i{display:block;height:100%;background:var(--ac)}
+ol{list-style:none;margin:0;padding:0}
+li{position:relative;padding:0 0 18px 28px}
+li:last-child{padding-bottom:0}
+li::before{content:"";position:absolute;left:5px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--ac)}
+li::after{content:"";position:absolute;left:10px;top:20px;bottom:-6px;width:2px;background:var(--ac)}
+li:last-child::after{display:none}
+li.cur::before{box-shadow:0 0 0 5px var(--ac2)}
+li b{display:block}
+.err{color:var(--warn)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.full{grid-column:1/-1}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.item{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd);cursor:pointer}
+.foot{text-align:center;margin-top:28px}
+.foot a{color:var(--mut);font-size:.85rem;cursor:pointer}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+<h1>📦 EliteExpressCargo</h1>
+<p class="sub">Suivez votre colis de Chine jusqu’en Afrique, étape par étape.</p>
+<div class="search">
+<input id="q" placeholder="Numéro de suivi" autocapitalize="characters" autocomplete="off">
+<button id="go">Suivre</button>
+</div>
+<div id="out"></div>
+
+<div class="foot"><a id="lnk">Espace admin</a></div>
+
+<div id="admin" class="card" hidden style="margin-top:16px">
+<div id="login">
+<h2>Connexion admin</h2>
+<div class="grid"><input class="full" id="l_e" type="email" placeholder="E-mail" autocomplete="username"><input class="full" id="l_p" type="password" placeholder="Mot de passe" autocomplete="current-password"></div>
+<button id="l_b">Se connecter</button>
+</div>
+<div id="panel" hidden>
+<div class="head"><h2>Espace admin</h2><button class="alt" id="l_o" style="padding:6px 12px">Déconnexion</button></div>
+<h2>Créer / modifier un colis</h2>
+<div class="grid">
+<input class="full" id="a_n" placeholder="N° de suivi (ex. EEC0001)" autocapitalize="characters">
+<input id="a_f" placeholder="Départ (ex. Guangzhou)"><input id="a_t" placeholder="Destination (ex. Dakar)">
+<select id="a_m"><option>✈️ Aérien</option><option>🚢 Maritime</option><option>🚚 Routier</option></select>
+<input id="a_e" placeholder="Arrivée estimée">
+</div>
+<button id="a_c">Enregistrer le colis</button>
+<h2 style="margin-top:18px">Ajouter une étape</h2>
+<div class="grid">
+<select class="full" id="a_s"></select>
+<input id="a_p" placeholder="Lieu (ex. Dubaï)"><input id="a_o" placeholder="Note (facultatif)">
+</div>
+<div class="row"><button id="a_a">Ajouter l’étape</button><button class="alt" id="a_d">Supprimer le colis</button></div>
+<h2 style="margin-top:18px">Vos colis</h2>
+<div id="list" class="mut">Chargement…</div>
+<p id="msg" class="mut"></p>
+</div>
+</div>
+</main>
+<script>
+var SB="https://ddnrtstlixycjmcapvuf.supabase.co";
+var KEY="sb_publishable_aPCwTiBByA11686IVYltUQ_baz-v6NP";
+var STEPS=["Commande enregistrée","Collecté chez le vendeur","Départ de Chine","En transit international","Arrivé / Douane","Livré"];
+var token=null;
+function $(i){return document.getElementById(i)}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function now(){return new Date().toLocaleString("fr-FR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}
+function hd(auth){var h={apikey:KEY,"Content-Type":"application/json"};if(auth&&token)h.Authorization="Bearer "+token;return h}
+function say(t){$("msg").textContent=t}
+
+/* ---------- Page publique ---------- */
+async function show(n){
+n=(n||"").trim().toUpperCase();$("q").value=n;
+var out=$("out");if(!n){out.innerHTML="";return}
+out.innerHTML='<p class="mut">Recherche…</p>';
+try{
+var r=await fetch(SB+"/rest/v1/rpc/suivre_colis",{method:"POST",headers:hd(false),body:JSON.stringify({num:n})});
+var rows=await r.json();
+if(!r.ok||!rows.length){out.innerHTML='<p class="err">Aucun colis trouvé pour « '+esc(n)+' ». Vérifiez le numéro.</p>';return}
+draw(n,rows[0]);
+}catch(e){out.innerHTML='<p class="err">Connexion impossible. Réessayez dans un instant.</p>'}
+}
+function draw(n,p){
+var ev=p.evenements||[];
+if(!ev.length){$("out").innerHTML='<p class="mut">Colis enregistré, pas encore d’information.</p>';return}
+var last=ev[ev.length-1],pct=Math.round(last.s/5*100),done=last.s===5;
+var li=ev.slice().reverse().map(function(e,i){
+return '<li class="'+(i===0?"cur":"")+'"><b>'+esc(STEPS[e.s])+'</b><span class="mut">'+esc(e.t)+' · '+esc(e.p)+'</span>'+(e.n?'<div class="mut">'+esc(e.n)+'</div>':"")+'</li>'}).join("");
+$("out").innerHTML='<div class="card"><div class="head"><div><div class="num">'+esc(n)+'</div><div class="mut">'+esc(p.mode)+'</div></div><span class="badge'+(done?"":" w")+'">'+esc(STEPS[last.s])+'</span></div>'+
+'<div class="route"><span>🇨🇳 '+esc(p.depart)+'</span><span>'+esc(p.destination)+' 🌍</span></div>'+
+'<svg viewBox="0 0 300 70" aria-hidden="true"><path id="pth" d="M15 55 Q150 -25 285 55" fill="none" stroke="var(--bd)" stroke-width="3" stroke-dasharray="6 6"/><path id="pg" d="M15 55 Q150 -25 285 55" fill="none" stroke="var(--ac)" stroke-width="3"/><circle cx="15" cy="55" r="5" fill="var(--ac)"/><circle cx="285" cy="55" r="5" fill="var(--mut)"/><circle id="dot" r="8" fill="var(--ac)" stroke="var(--card)" stroke-width="3"/></svg>'+
+'<div class="bar"><i style="width:'+pct+'%"></i></div><div class="mut">'+pct+' % du trajet · '+(done?"Livré":"Arrivée estimée : "+esc(p.eta))+'</div></div>'+
+'<div class="card"><h2>Historique</h2><ol>'+li+'</ol></div>';
+var path=$("pth"),L=path.getTotalLength(),pt=path.getPointAtLength(L*pct/100),g=$("pg");
+$("dot").setAttribute("cx",pt.x);$("dot").setAttribute("cy",pt.y);
+g.style.strokeDasharray=L;g.style.strokeDashoffset=L*(1-pct/100);
+}
+$("go").onclick=function(){show($("q").value)};
+$("q").addEventListener("keydown",function(e){if(e.key==="Enter")show($("q").value)});
+var u=new URLSearchParams(location.search).get("n");if(u)show(u);
+
+/* ---------- Espace admin ---------- */
+$("a_s").innerHTML=STEPS.map(function(s,i){return '<option value="'+i+'">'+s+'</option>'}).join("");
+$("lnk").onclick=function(){$("admin").hidden=!$("admin").hidden};
+$("l_b").onclick=async function(){
+try{
+var r=await fetch(SB+"/auth/v1/token?grant_type=password",{method:"POST",headers:hd(false),body:JSON.stringify({email:$("l_e").value.trim(),password:$("l_p").value})});
+var d=await r.json();
+if(!r.ok){alert("E-mail ou mot de passe incorrect.");return}
+token=d.access_token;$("login").hidden=true;$("panel").hidden=false;$("l_p").value="";loadList();
+}catch(e){alert("Connexion impossible.")}
+};
+$("l_o").onclick=function(){token=null;$("panel").hidden=true;$("login").hidden=false};
+async function api(path,opt){
+opt=opt||{};opt.headers=Object.assign(hd(true),opt.headers||{});
+var r=await fetch(SB+"/rest/v1/"+path,opt);
+if(!r.ok){var t=await r.text();throw new Error(t)}
+var t2=await r.text();return t2?JSON.parse(t2):null;
+}
+function cur(){return $("a_n").value.trim().toUpperCase()}
+async function loadList(){
+try{
+var rows=await api("colis?select=numero,destination,evenements&order=cree_le.desc");
+$("list").innerHTML=rows.length?rows.map(function(r){
+var ev=r.evenements||[],st=ev.length?STEPS[ev[ev.length-1].s]:"—";
+return '<div class="item" data-n="'+esc(r.numero)+'"><span><b>'+esc(r.numero)+'</b> → '+esc(r.destination)+'</span><span class="mut">'+esc(st)+'</span></div>'}).join(""):"Aucun colis pour l’instant.";
+Array.prototype.forEach.call($("list").querySelectorAll(".item"),function(el){el.onclick=function(){$("a_n").value=el.getAttribute("data-n");show(el.getAttribute("data-n"))}});
+}catch(e){$("list").textContent="Erreur de chargement."}
+}
+$("a_c").onclick=async function(){
+var n=cur();if(!n||!$("a_f").value||!$("a_t").value){say("Numéro, départ et destination sont requis.");return}
+try{
+var ex=await api("colis?numero=eq."+encodeURIComponent(n)+"&select=evenements");
+var ev=ex.length?ex[0].evenements:[{s:0,t:now(),p:$("a_f").value,n:"Commande enregistrée"}];
+await api("colis",{method:"POST",headers:{Prefer:"resolution=merge-duplicates"},body:JSON.stringify({numero:n,depart:$("a_f").value,destination:$("a_t").value,mode:$("a_m").value,eta:$("a_e").value||"À confirmer",evenements:ev})});
+say("Colis enregistré ✅");loadList();show(n);
+}catch(e){say("Erreur : "+e.message)}
+};
+$("a_a").onclick=async function(){
+var n=cur();if(!n||!$("a_p").value){say("Numéro et lieu requis.");return}
+try{
+var ex=await api("colis?numero=eq."+encodeURIComponent(n)+"&select=evenements");
+if(!ex.length){say("Colis introuvable : créez-le d’abord.");return}
+var ev=ex[0].evenements||[];
+ev.push({s:+$("a_s").value,t:now(),p:$("a_p").value,n:$("a_o").value});
+await api("colis?numero=eq."+encodeURIComponent(n),{method:"PATCH",body:JSON.stringify({evenements:ev})});
+say("Étape ajoutée ✅");$("a_p").value="";$("a_o").value="";loadList();show(n);
+}catch(e){say("Erreur : "+e.message)}
+};
+$("a_d").onclick=async function(){
+var n=cur();if(!n||!confirm("Supprimer "+n+" ?"))return;
+try{await api("colis?numero=eq."+encodeURIComponent(n),{method:"DELETE"});say("Colis supprimé.");$("out").innerHTML="";loadList()}catch(e){say("Erreur : "+e.message)}
+};
+</script>
+</body>
+  </html>
